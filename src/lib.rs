@@ -1,30 +1,24 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use reqwest::blocking;
-use serde_json::Value;
+use serde::Deserialize;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct Thing {
     pub title: String,
-    pub attype: String,
+    #[serde(rename = "@type")]
+    pub attype: Vec<String>,
 }
 
 fn get_thing(info: ServiceInfo) -> Result<Thing> {
     let host = info.get_addresses().iter().next().unwrap();
     let port = info.get_port();
 
-    let v: Value = blocking::get(format!("http://{}:{}", host, port))?.json()?;
+    let r = blocking::get(format!("http://{}:{}", host, port))?;
 
-    let title = v
-        .get("title")
-        .ok_or_else(|| anyhow!("Cannot find name"))?
-        .to_string();
-    let attype = v
-        .get("@type")
-        .ok_or_else(|| anyhow!("Cannot find @type"))?
-        .to_string();
+    let t = r.json()?;
 
-    Ok(Thing { title, attype })
+    Ok(t)
 }
 
 pub fn get_things(mut limit: usize) -> Result<Vec<Thing>> {
